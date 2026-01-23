@@ -26,10 +26,13 @@ def load_audio(file_path: str, target_sr: int = config.SAMPLE_RATE) -> torch.Ten
         if sr != target_sr:
             resampler = torchaudio.transforms.Resample(sr, target_sr)
             waveform = resampler(waveform)
-    except:
-        # Fallback to librosa
-        waveform, sr = librosa.load(file_path, sr=target_sr, mono=True)
-        waveform = torch.from_numpy(waveform).unsqueeze(0)
+    except (RuntimeError, OSError, Exception) as e:
+        # Fallback to librosa with error logging
+        try:
+            waveform, sr = librosa.load(file_path, sr=target_sr, mono=True)
+            waveform = torch.from_numpy(waveform).unsqueeze(0)
+        except Exception as e2:
+            raise RuntimeError(f"Failed to load audio file {file_path}: torchaudio error: {e}, librosa error: {e2}")
     
     # Ensure mono channel
     if waveform.shape[0] > 1:

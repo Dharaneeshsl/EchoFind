@@ -45,17 +45,18 @@ class NTXentLoss(nn.Module):
         # z is normalized, so dot product = cosine similarity
         similarity_matrix = torch.matmul(z, z.T)  # (2*batch, 2*batch)
         
-        # Scale by temperature
-        similarity_matrix = similarity_matrix / self.temperature
-        
         # Create labels: positive pairs are (i, i+batch) and (i+batch, i)
         # For sample i: positive is (i, i+batch) and (i+batch, i)
         labels = torch.arange(batch_size).to(z1.device)
         labels = torch.cat([labels + batch_size, labels], dim=0)  # (2*batch,)
         
-        # Mask to remove self-similarity (diagonal)
+        # Mask to remove self-similarity (diagonal) before temperature scaling
+        # Use large negative value instead of -inf for better numerical stability
         mask = torch.eye(2 * batch_size, dtype=torch.bool).to(z1.device)
-        similarity_matrix = similarity_matrix.masked_fill(mask, float('-inf'))
+        similarity_matrix = similarity_matrix.masked_fill(mask, -1e9)
+        
+        # Scale by temperature after masking
+        similarity_matrix = similarity_matrix / self.temperature
         
         # Compute cross-entropy loss
         # For each row i, the positive class is at position labels[i]

@@ -21,6 +21,13 @@ def main():
         use_faiss=True
     )
     
+    # Validate index was built successfully
+    if len(retrieval_system.database) == 0:
+        print("ERROR: No tracks were indexed!")
+        print(f"Please check that audio files exist in {config.DATA_DIR}")
+        import sys
+        sys.exit(1)
+    
     # Save index
     index_path = os.path.join(config.RESULTS_DIR, 'retrieval_index.pkl')
     os.makedirs(config.RESULTS_DIR, exist_ok=True)

@@ -20,7 +20,7 @@ NUM_EPOCHS = 100
 LEARNING_RATE = 0.001
 WEIGHT_DECAY = 1e-4
 TEMPERATURE = 0.07  # NT-Xent temperature
-NUM_WORKERS = 4
+NUM_WORKERS = 0  # Set to 0 on Windows to avoid multiprocessing issues
 
 # Augmentation parameters
 TIME_MASK_PARAM = 20  # Maximum time masking length

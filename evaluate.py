@@ -12,6 +12,7 @@ import os
 import glob
 import pandas as pd
 from tqdm import tqdm
+from typing import Tuple, Dict, Optional
 import config
 from model import ResNetEncoder
 from audio_processing import preprocess_audio
@@ -192,7 +193,7 @@ def linear_probe_evaluation(
     dataset = LabeledAudioDataset(audio_files, labels, track_ids)
     dataloader = DataLoader(
         dataset,
-        batch_size=32,
+        batch_size=config.BATCH_SIZE,
         shuffle=False,
         num_workers=config.NUM_WORKERS
     )

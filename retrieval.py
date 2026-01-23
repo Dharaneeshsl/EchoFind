@@ -132,8 +132,9 @@ class AudioRetrievalSystem:
                 embeddings_array = np.array(embeddings).astype('float32')
                 dimension = embeddings_array.shape[1]
                 
-                # Use L2 index (since embeddings are normalized, L2 = cosine distance)
-                self.faiss_index = faiss.IndexFlatL2(dimension)
+                # Use Inner Product index (for normalized vectors, IP = cosine similarity)
+                # This is more efficient and accurate than L2 for normalized embeddings
+                self.faiss_index = faiss.IndexFlatIP(dimension)
                 self.faiss_index.add(embeddings_array)
                 
                 print(f"Built FAISS index with {self.faiss_index.ntotal} vectors")
@@ -159,8 +160,11 @@ class AudioRetrievalSystem:
         if len(self.database) == 0:
             raise ValueError("Database not built. Call build_index() first.")
         
-        # Preprocess noisy audio
-        spectrogram = preprocess_audio(noisy_audio_path, normalize=True)
+        # Preprocess noisy audio with error handling
+        try:
+            spectrogram = preprocess_audio(noisy_audio_path, normalize=True)
+        except Exception as e:
+            raise ValueError(f"Failed to process audio file {noisy_audio_path}: {e}")
         
         # Pad or crop to consistent length
         target_frames = int(5 * config.SAMPLE_RATE / config.HOP_LENGTH)
@@ -182,17 +186,17 @@ class AudioRetrievalSystem:
         
         # Search
         if self.faiss_index is not None:
-            # Use FAISS
+            # Use FAISS with Inner Product (cosine similarity for normalized vectors)
             query_array = query_embedding_np.reshape(1, -1).astype('float32')
-            distances, indices = self.faiss_index.search(query_array, top_k)
+            similarities, indices = self.faiss_index.search(query_array, top_k)
             
             results = []
-            for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
+            for i, (similarity, idx) in enumerate(zip(similarities[0], indices[0])):
                 if idx < len(self.track_ids):
                     track_id = self.track_ids[idx]
-                    # Convert L2 distance to cosine similarity (since embeddings are normalized)
-                    similarity = 1.0 - (dist / 2.0)  # L2^2 = 2(1 - cosine_sim) for normalized vectors
-                    results.append((track_id, similarity))
+                    # For normalized vectors, inner product = cosine similarity
+                    # FAISS IndexFlatIP returns similarities directly
+                    results.append((track_id, float(similarity)))
         else:
             # Brute-force search
             similarities = []

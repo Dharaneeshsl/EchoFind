@@ -5,10 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.manifold import TSNE
-import umap
 import os
+from typing import Optional
 import config
 from evaluate import linear_probe_evaluation
+
+# Check UMAP availability
+try:
+    import umap
+    UMAP_AVAILABLE = True
+except ImportError:
+    UMAP_AVAILABLE = False
+    print("Warning: umap-learn not installed. UMAP visualization will be skipped.")
 
 
 def visualize_embeddings(
@@ -33,6 +41,8 @@ def visualize_embeddings(
         reducer = TSNE(n_components=2, random_state=config.RANDOM_SEED, perplexity=30)
         embeddings_2d = reducer.fit_transform(embeddings)
     elif method.lower() == 'umap':
+        if not UMAP_AVAILABLE:
+            raise ImportError("umap-learn is not installed. Install it with: pip install umap-learn")
         reducer = umap.UMAP(n_components=2, random_state=config.RANDOM_SEED)
         embeddings_2d = reducer.fit_transform(embeddings)
     else:

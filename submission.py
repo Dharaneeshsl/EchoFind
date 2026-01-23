@@ -66,6 +66,8 @@ class AudioEncoder:
         spectrogram = preprocess_audio(audio_path, normalize=True)
         
         # Pad or crop to consistent length (5 seconds)
+        if config.HOP_LENGTH == 0:
+            raise ValueError("HOP_LENGTH cannot be zero in config")
         target_frames = int(5 * config.SAMPLE_RATE / config.HOP_LENGTH)
         
         if spectrogram.shape[2] < target_frames:
