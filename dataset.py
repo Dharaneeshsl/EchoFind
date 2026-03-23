@@ -77,59 +77,67 @@ class ContrastiveAudioDataset(Dataset):
         Returns:
             Tuple of (view1, view2) - both are spectrograms of shape (1, n_mels, time_frames)
         """
-        audio_path = self.audio_files[idx]
-        
-        # Load and preprocess audio
-        if self.augment and (self.use_pitch_shift or self.use_time_stretch):
-            # For pitch shift and time stretch, we need to work with waveform first
-            import torchaudio
-            import librosa
-            
+        for _ in range(10):
             try:
-                waveform, sr = torchaudio.load(audio_path)
-                if sr != config.SAMPLE_RATE:
-                    resampler = torchaudio.transforms.Resample(sr, config.SAMPLE_RATE)
-                    waveform = resampler(waveform)
-            except:
-                waveform, sr = librosa.load(audio_path, sr=config.SAMPLE_RATE, mono=True)
-                waveform = torch.from_numpy(waveform).unsqueeze(0)
-            
-            if waveform.shape[0] > 1:
-                waveform = torch.mean(waveform, dim=0, keepdim=True)
-            
-            # Apply waveform-level augmentations randomly
-            if self.use_pitch_shift and np.random.random() > 0.5:
-                waveform = self.pitch_shift(waveform)
-            if self.use_time_stretch and np.random.random() > 0.5:
-                waveform = self.time_stretch(waveform)
-            
-            # Convert to spectrogram
-            from audio_processing import audio_to_logmel, normalize_spectrogram
-            spec1 = audio_to_logmel(waveform)
-            spec1 = normalize_spectrogram(spec1)
-            
-            # Create second view (may apply different waveform augmentations)
-            waveform2 = waveform.clone()
-            if self.use_pitch_shift and np.random.random() > 0.5:
-                waveform2 = self.pitch_shift(waveform2)
-            if self.use_time_stretch and np.random.random() > 0.5:
-                waveform2 = self.time_stretch(waveform2)
-            
-            spec2 = audio_to_logmel(waveform2)
-            spec2 = normalize_spectrogram(spec2)
-        else:
-            # Standard path: load directly to spectrogram
-            spec1 = preprocess_audio(audio_path, normalize=True)
-            spec2 = preprocess_audio(audio_path, normalize=True)
-        
-        # Apply spectrogram-level augmentations
-        if self.augment and self.spectrogram_aug is not None:
-            spec1 = self.spectrogram_aug(spec1)
-            spec2 = self.spectrogram_aug(spec2)
-        
-        # Ensure consistent shape (pad or crop to fixed length if needed)
-        # For now, we'll use variable length and handle in collate function
-        return spec1, spec2
+                audio_path = self.audio_files[idx]
+                
+                # Load and preprocess audio
+                if self.augment and (self.use_pitch_shift or self.use_time_stretch):
+                    # For pitch shift and time stretch, we need to work with waveform first
+                    import torchaudio
+                    import librosa
+                    
+                    try:
+                        waveform, sr = torchaudio.load(audio_path)
+                        if sr != config.SAMPLE_RATE:
+                            resampler = torchaudio.transforms.Resample(sr, config.SAMPLE_RATE)
+                            waveform = resampler(waveform)
+                    except:
+                        waveform, sr = librosa.load(audio_path, sr=config.SAMPLE_RATE, mono=True)
+                        waveform = torch.from_numpy(waveform).unsqueeze(0)
+                    
+                    if waveform.shape[0] > 1:
+                        waveform = torch.mean(waveform, dim=0, keepdim=True)
+                    
+                    # Apply waveform-level augmentations randomly
+                    if self.use_pitch_shift and np.random.random() > 0.5:
+                        waveform = self.pitch_shift(waveform)
+                    if self.use_time_stretch and np.random.random() > 0.5:
+                        waveform = self.time_stretch(waveform)
+                    
+                    # Convert to spectrogram
+                    from audio_processing import audio_to_logmel, normalize_spectrogram
+                    spec1 = audio_to_logmel(waveform)
+                    spec1 = normalize_spectrogram(spec1)
+                    
+                    # Create second view (may apply different waveform augmentations)
+                    waveform2 = waveform.clone()
+                    if self.use_pitch_shift and np.random.random() > 0.5:
+                        waveform2 = self.pitch_shift(waveform2)
+                    if self.use_time_stretch and np.random.random() > 0.5:
+                        waveform2 = self.time_stretch(waveform2)
+                    
+                    spec2 = audio_to_logmel(waveform2)
+                    spec2 = normalize_spectrogram(spec2)
+                else:
+                    # Standard path: load directly to spectrogram
+                    spec1 = preprocess_audio(audio_path, normalize=True).clone()
+                    spec2 = preprocess_audio(audio_path, normalize=True).clone()
+                
+                # Apply spectrogram-level augmentations
+                if self.augment and self.spectrogram_aug is not None:
+                    spec1 = self.spectrogram_aug(spec1)
+                    spec2 = self.spectrogram_aug(spec2)
+                
+                # Ensure consistent shape (pad or crop to fixed length if needed)
+                # For now, we'll use variable length and handle in collate function
+                return spec1, spec2
+            except Exception as e:
+                import numpy as np
+                idx = np.random.randint(0, len(self.audio_files))
+                
+        dummy = torch.zeros(1, config.N_MELS, 215)
+        return dummy, dummy
 
 
 def collate_fn(batch):

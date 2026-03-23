@@ -211,8 +211,7 @@ def linear_probe_evaluation(
         embeddings,
         labels_array,
         test_size=1.0 - train_ratio,
-        random_state=config.RANDOM_SEED,
-        stratify=labels_array
+        random_state=config.RANDOM_SEED
     )
     
     print(f"Training set: {len(X_train)} samples ({train_ratio*100:.1f}%)")
