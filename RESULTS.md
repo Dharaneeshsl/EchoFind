@@ -6,15 +6,13 @@ This report documents the final empirical evaluation of **EchoFind** after full 
 
 ## 🏆 Final Model Pretraining Performance
 
-- **Dataset**: FMA-Small (8,000 audio tracks: 7,200 train / 800 validation)
-- **Hardware**: NVIDIA GeForce RTX 5050 Laptop GPU with PyTorch Mixed Precision (`torch.amp`)
-- **SSL Contrastive Loss**: NT-Xent ($\tau=0.07$)
-- **Final Training Status**: **SUCCESS (Early Stopping Triggered on Convergence)**
-- **Best Validation Loss**: **`0.0046`**
-- **Final Train Loss**: **`0.0070`**
-- **Saved Weights**:
-  - Full Checkpoint: [`weights/best_model.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/best_model.pth) (~141 MB)
-  - Extracted Encoder: [`weights/encoder.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/encoder.pth) (~45.8 MB)
+## 1. Full Dataset Self-Supervised Training (SimCLR)
+- **Status**: ✅ **Fully Completed & Converged** (Early stopping triggered)
+- **Dataset**: 8,000 FMA-Small audio tracks
+- **Best Validation Loss**: **0.0124** (NT-Xent contrastive loss)
+- **Hardware Acceleration**: Mixed Precision (AMP `fp16`) on NVIDIA GPU
+- **Saved Model Checkpoint**: [`weights/best_model.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/best_model.pth) (`141 MB`)
+- **Saved Encoder Weights**: [`weights/encoder.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/encoder.pth) (`45.8 MB`)
 
 ---
 
