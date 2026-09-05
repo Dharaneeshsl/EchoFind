@@ -243,8 +243,7 @@ def linear_probe_evaluation(
     print("Training linear probe...")
     linear_probe = LogisticRegression(
         max_iter=1000,
-        random_state=config.RANDOM_SEED,
-        multi_class='ovr'  # One-vs-rest for multi-class
+        random_state=config.RANDOM_SEED
     )
     linear_probe.fit(X_train, y_train)
     

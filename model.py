@@ -24,8 +24,8 @@ class ResNetEncoder(nn.Module):
         """
         super(ResNetEncoder, self).__init__()
         
-        # Load pretrained ResNet-18 (we'll adapt it)
-        resnet = models.resnet18(pretrained=False)
+        # Load ResNet-18 (weights=None for training from scratch)
+        resnet = models.resnet18(weights=None)
         
         # Replace first conv layer to accept single channel input
         self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)

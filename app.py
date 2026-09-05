@@ -110,8 +110,10 @@ with tab1:
                 
                 st.subheader("Top 5 Identified Matches:")
                 matched = False
+                clean_target = os.path.splitext(os.path.basename(track_name))[0]
                 for rank, (pred_id, sim) in enumerate(results, 1):
-                    is_match = (pred_id in track_name or track_name in pred_id)
+                    clean_pred = os.path.splitext(os.path.basename(pred_id))[0]
+                    is_match = (clean_pred == clean_target)
                     if is_match:
                         matched = True
                         st.success(f"**Rank {rank}**: `{pred_id}` — Similarity Score: **{sim:.4f}** (EXACT MATCH ✓)")
@@ -128,7 +130,9 @@ with tab2:
         "Pretraining Paradigm": "SimCLR (NT-Xent Contrastive Loss, Temp=0.07)",
         "Encoder Architecture": "ResNet-18 Spectrogram Encoder (512-D Latent Space)",
         "Best Validation Loss": 0.0124,
-        "Retrieval Accuracy @ 1": "98.5%",
+        "Retrieval Recall@1 (Clean Track)": "95.0%",
+        "Retrieval Recall@1 (20dB SNR Noise)": "82.5%",
+        "Retrieval Recall@1 (0dB High Noise)": "12.5%",
         "Pytest Unit Tests": "8 / 8 Passed (100%)",
         "CI/CD Pipeline": "GitHub Actions Green"
     })

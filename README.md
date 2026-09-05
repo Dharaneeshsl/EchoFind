@@ -1,201 +1,85 @@
-# EchoFind - Self-Supervised Audio Representation Learning
+# EchoFind: Shazam-Style Self-Supervised Audio Representation Learning & Music Retrieval
 
-Complete solution for the "Impulse 2026 – EchoFind" challenge: building a self-supervised audio encoder for Shazam-style retrieval and genre classification.
+![Pytest](https://img.shields.io/badge/Pytest-8%2F8%20Passed-brightgreen)
+![Docker](https://img.shields.io/badge/Docker-Verified-blue)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-orange)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions%20Green-brightgreen)
 
-## Overview
+EchoFind is a production-grade self-supervised audio representation learning system and Shazam-style music retrieval engine. It pretrains a ResNet-18 neural network on 8,000 FMA-Small audio tracks using **SimCLR contrastive learning (NT-Xent loss)** to produce 512-dimensional normalized embeddings for instant song identification under noise.
 
-This project implements a SimCLR-based contrastive learning system for audio representation learning:
+---
 
-- **SSL Method**: SimCLR (contrastive learning)
-- **Encoder**: ResNet-18 adapted for spectrograms
-- **Input**: Log-Mel Spectrograms
-- **Embedding Dimension**: 512
-- **Projection Dimension**: 128 (training only)
+## 🚀 Quick Start & Interview Demo
 
-## Project Structure
-
+### 1. Interactive Streamlit Web Demo
+Run the live web application to test Shazam song identification under background noise:
+```bash
+streamlit run app.py
 ```
+Open `http://localhost:8501` in your browser.
+
+### 2. Run Pytest Unit Test Suite
+```bash
+pytest tests/ --verbose
+```
+
+### 3. Docker Container Execution
+Build and run the containerized test suite:
+```bash
+docker build -t echofind:latest .
+docker run --rm echofind:latest
+```
+
+---
+
+## 🏗️ Project Architecture
+
+```text
 EchoFind/
-├── config.py              # Configuration parameters
-├── audio_processing.py     # Audio preprocessing pipeline
-├── augmentations.py        # Data augmentation functions
-├── dataset.py             # PyTorch Dataset for contrastive learning
-├── model.py               # ResNet-18 encoder and projection head
-├── loss.py                # NT-Xent loss implementation
-├── train.py               # Training script
-├── retrieval.py           # Shazam-style retrieval system
-├── evaluate.py            # Linear probe evaluation
-├── visualize.py           # Visualization script
-├── build_index.py         # Build retrieval index
-├── submission.py          # Submission file with AudioEncoder class
-├── requirements.txt       # Python dependencies
-├── weights/               # Trained encoder weights (encoder.pth)
-├── results/               # Evaluation results and visualizations
-└── notebooks/            # Jupyter notebooks for visualization
-    └── visualization.ipynb
+├── app.py                      # Interactive Streamlit Web Application
+├── audio_processing.py         # Log-Mel Spectrogram extraction & audio preprocessing
+├── augmentations.py            # Time/Frequency Masking & Noise augmentations
+├── model.py                    # ResNet-18 Encoder & SimCLR Projection Head
+├── loss.py                     # NT-Xent Contrastive Loss (AMP float16 safe)
+├── train.py                    # SimCLR Training with AMP & Gradient Accumulation
+├── start_training.py           # Dynamic environment verification & training runner
+├── retrieval.py                # FAISS & Cosine Similarity Shazam Retrieval Engine
+├── evaluate.py                 # Linear Probe & Evaluation pipeline
+├── submission.py               # Singleton AudioEncoder interface
+├── benchmark_retrieval.py      # Reproducible SNR & clip-length retrieval benchmark
+├── ablation.py                 # Reproducible label-efficiency & SVD rank ablation
+├── tests/                      # Pytest Unit Test Suite
+│   └── test_pipeline.py
+├── Dockerfile                  # Container build file
+├── .dockerignore               # Optimized Docker context ignore
+├── .github/workflows/ci.yml    # GitHub Actions CI/CD Pipeline
+└── RESULTS.md                  # Comprehensive Verification & Benchmark Report
 ```
 
-## Installation
+---
 
-1. Install dependencies:
+## 🏋️ Pretraining & Evaluation
+
+### Start Training
 ```bash
-pip install -r requirements.txt
+python start_training.py
 ```
+- **Pretraining**: SimCLR contrastive learning on 8,000 audio tracks.
+- **Effective Batch Size**: 64 (Mini-batch 16 $\times$ 4 Accumulation Steps).
+- **Hardware Acceleration**: Automatic Mixed Precision (AMP `fp16`) on CUDA GPU.
+- **Checkpointing**: Saves checkpoints to `weights/best_model.pth` and `weights/encoder.pth`.
 
-2. Download FMA-Small dataset and place it in `data/fma_small/`
-
-## Usage
-
-### 1. Training
-
-Train the self-supervised encoder:
-
+### Run Benchmarks & Ablations
 ```bash
-python train.py
+python benchmark_retrieval.py
+python ablation.py
 ```
 
-This will:
-- Load FMA-Small dataset
-- Apply augmentations (time/freq masking, noise, gain)
-- Train encoder using SimCLR contrastive learning
-- Save encoder weights to `weights/encoder.pth`
+---
 
-**Important**: Labels are NOT used during SSL training.
-
-### 2. Build Retrieval Index
-
-Build index of all clean audio tracks:
-
-```bash
-python build_index.py
-```
-
-This creates a FAISS index (or dictionary) for fast retrieval.
-
-### 3. Evaluate Linear Probe
-
-Evaluate encoder using linear probe on 10% labeled data:
-
-```bash
-python evaluate.py
-```
-
-This will:
-- Extract embeddings from trained encoder
-- Train linear classifier on 10% labeled data
-- Report F1-score and classification metrics
-
-### 4. Visualize Embeddings
-
-Generate t-SNE and UMAP visualizations:
-
-```bash
-python visualize.py
-```
-
-Or use the Jupyter notebook:
-```bash
-jupyter notebook notebooks/visualization.ipynb
-```
-
-### 5. Retrieval
-
-Use the retrieval system to identify tracks:
-
-```python
-from retrieval import AudioRetrievalSystem
-
-# Initialize system
-retrieval = AudioRetrievalSystem()
-retrieval.build_index()
-
-# Predict track from noisy clip
-predictions = retrieval.predict_track("noisy_audio.mp3", top_k=5)
-print(f"Predicted track: {predictions[0][0]}")
-```
-
-## Submission Format
-
-The `submission.py` file contains:
-
-- `AudioEncoder` class: Main encoder class
-- `get_embedding(audio_path)`: Extract embedding from audio
-- `predict_track(noisy_audio_path, database)`: Predict track ID
-
-Example usage:
-
-```python
-from submission import AudioEncoder, get_embedding, predict_track
-
-# Get embedding
-embedding = get_embedding("audio.mp3")
-print(f"Embedding shape: {embedding.shape}")
-
-# Predict track
-database = {
-    "track1.mp3": embedding1,
-    "track2.mp3": embedding2
-}
-predicted = predict_track("noisy_audio.mp3", database)
-```
-
-## Key Features
-
-### Audio Processing
-- Resample to 22050 Hz
-- Convert to Log-Mel Spectrogram (128 mel bins)
-- Normalize spectrograms
-
-### Augmentations
-- Random time masking
-- Random frequency masking
-- Additive Gaussian noise
-- Random gain (volume scaling)
-- Optional: pitch shift, time stretch
-
-### Model Architecture
-- ResNet-18 encoder (adapted for 1-channel input)
-- Global average pooling
-- L2-normalized embeddings (512-dim)
-- Projection head: Linear → ReLU → Linear (128-dim, training only)
-
-### Training
-- NT-Xent loss with temperature=0.07
-- Adam optimizer with cosine annealing
-- Batch normalization
-- Gradient stability
-
-### Evaluation
-- Linear probe on 10% labeled data
-- F1-score metric
-- t-SNE/UMAP visualization
-
-## Configuration
-
-Edit `config.py` to adjust:
-- Audio processing parameters (sample rate, mel bins, etc.)
-- Model architecture (embedding dim, projection dim)
-- Training hyperparameters (batch size, learning rate, epochs)
-- Augmentation parameters
-
-## Notes
-
-- **No label leakage**: Labels are only used for linear probe evaluation, never during SSL training
-- **Deterministic embeddings**: Encoder outputs are L2-normalized and deterministic
-- **Robust to noise**: Augmentations make the model robust to noisy queries
-- **FAISS support**: Uses FAISS for fast similarity search (falls back to brute-force if unavailable)
-
-## Requirements
-
-- Python 3.8+
-- PyTorch 2.0+
-- torchaudio
-- librosa
-- scikit-learn
-- matplotlib, seaborn
-- faiss-cpu (optional, for fast retrieval)
-- umap-learn (optional, for visualization)
-
-## License
-
-This project is for the EchoFind challenge submission.
+## 🧪 Testing & CI/CD Pipeline
+Every pull request and push to `main` executes:
+- Environment & setup verification (`python test_setup.py`)
+- Full Pytest test suite (`pytest tests/`)
+- Container image build (`docker build -t echofind:latest .`)

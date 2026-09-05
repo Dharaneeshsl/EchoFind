@@ -104,9 +104,9 @@ def test_load_fma_labels_zero_padded_keys(tmp_path):
 
 def test_retrieval_system_search_modes(tmp_path):
     """Verify AudioRetrievalSystem operates correctly under both FAISS and brute-force modes."""
-    retrieval = AudioRetrievalSystem()
+    import soundfile as sf
     
-    # Inject dummy database
+    retrieval = AudioRetrievalSystem()
     dim = config.EMBEDDING_DIM
     v1 = np.random.randn(dim).astype(np.float32)
     v1 /= np.linalg.norm(v1)
@@ -114,18 +114,25 @@ def test_retrieval_system_search_modes(tmp_path):
     retrieval.database = {"000001.mp3": v1}
     retrieval.track_ids = ["000001.mp3"]
 
-    # Test brute-force path (faiss_index = None)
-    retrieval.faiss_index = None
-    query = v1.reshape(1, -1)
-    sim = np.dot(query, v1)
-    assert float(sim[0]) > 0.99
+    # Create dummy audio query file
+    audio_path = str(tmp_path / "query.wav")
+    dummy_wav = np.random.randn(22050 * 2).astype(np.float32)
+    sf.write(audio_path, dummy_wav, 22050)
 
-    # Test save and reload
+    # Test brute-force search mode (faiss_index = None)
+    retrieval.faiss_index = None
+    results_brute = retrieval.predict_track(audio_path, top_k=1)
+    assert len(results_brute) == 1
+    assert results_brute[0][0] == "000001.mp3"
+
+    # Test FAISS index rebuild and load_index end-to-end
     save_path = str(tmp_path / "tmp_test_idx.pkl")
     retrieval.save_index(save_path)
     retrieval.load_index(save_path)
     
-    assert "000001.mp3" in retrieval.database
+    results_loaded = retrieval.predict_track(audio_path, top_k=1)
+    assert len(results_loaded) == 1
+    assert results_loaded[0][0] == "000001.mp3"
 
 
 def test_submission_caching():

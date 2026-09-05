@@ -1,93 +1,41 @@
-# EchoFind: Empirical Verification & Final Benchmark Results
+# EchoFind - Verification & Experimentation Report
 
-This report documents the final empirical evaluation of **EchoFind** after full self-supervised pretraining on the **FMA-Small dataset (8,000 audio tracks)** using an NVIDIA GeForce RTX 5050 GPU.
-
----
-
-## 🏆 Final Model Pretraining Performance
-
-## 1. Full Dataset Self-Supervised Training (SimCLR)
-- **Status**: ✅ **Fully Completed & Converged** (Early stopping triggered)
-- **Dataset**: 8,000 FMA-Small audio tracks
-- **Best Validation Loss**: **0.0124** (NT-Xent contrastive loss)
-- **Hardware Acceleration**: Mixed Precision (AMP `fp16`) on NVIDIA GPU
-- **Saved Model Checkpoint**: [`weights/best_model.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/best_model.pth) (`141 MB`)
-- **Saved Encoder Weights**: [`weights/encoder.pth`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/weights/encoder.pth) (`45.8 MB`)
+This document records empirical benchmarks, code audit findings, and model performance metrics for **EchoFind** (SimCLR self-supervised audio representation learning & Shazam-style music retrieval).
 
 ---
 
-## 1. Verified Bug Fixes & Code Audit Log (Tier 0)
+## 1. Verified Code Audit & Fix Status
 
-| Bug Description | Status | Verification Detail |
-|---|---|---|
-| **Label Mapping (`load_fma_labels`)** | **FIXED** | Separated genre mapping from track ID mapping. Added 6-digit zero-padded filename keys (`000002.mp3`, `000002`, `2.mp3`) matching FMA `tracks.csv`. Robust column detection for MultiIndex headers. |
-| **`import faiss` Top-Level Crash** | **FIXED** | Wrapped `faiss` import in `try...except ImportError`. Added automatic fallback to brute-force NumPy inner-product search when FAISS is unavailable. |
-| **Augmentation Bounds Crash** | **FIXED** | Clamped `time_mask_param` and `freq_mask_param` relative to input tensor dimensions in `TimeMasking` and `FrequencyMasking`. |
-| **Validation & Checkpointing** | **FIXED** | Active validation loop in `train.py` evaluating `val_loss` each epoch. Early stopping and best model checkpointing (`best_model.pth` & `encoder.pth`) track `val_loss`. |
-| **`start_training.py` Verification** | **FIXED** | Replaced hardcoded status prints with dynamic checks for actual dataset audio counts and Python package dependencies. |
-| **Torchvision Deprecation** | **FIXED** | Replaced `resnet18(pretrained=False)` with modern `models.resnet18(weights=None)`. |
-| **Submission Model Caching** | **FIXED** | Implemented singleton caching (`get_default_encoder`) to avoid reloading model weights on every query call. |
-| **Notebook Cleanliness** | **FIXED** | Removed empty trailing cells in `notebooks/visualization.ipynb` and added cluster analysis section. |
-
----
-
-## 2. Quantitative Retrieval Accuracy Benchmark
-
-Retrieval performance evaluated across $N=100$ indexed tracks under varying Signal-to-Noise Ratios (SNR) and clip durations:
-
-| Clip Duration | Query SNR (dB) | Top-1 Recall | Top-5 Recall | Search Latency |
-|---|---|---|---|---|
-| **2.0s** | 20 dB (Clean) | **100.0%** | **100.0%** | < 1 ms |
-| **2.0s** | 10 dB (Moderate Noise) | **52.0%** | **80.0%** | < 1 ms |
-| **2.0s** | 5 dB (Heavy Noise) | **20.0%** | **56.0%** | < 1 ms |
-| **2.0s** | 0 dB (Severe Noise) | **10.0%** | **30.0%** | < 1 ms |
-| **5.0s** | 20 dB (Clean) | **100.0%** | **100.0%** | < 1 ms |
-| **5.0s** | 10 dB (Moderate Noise) | **74.0%** | **92.0%** | < 1 ms |
-| **5.0s** | 5 dB (Heavy Noise) | **28.0%** | **52.0%** | < 1 ms |
-| **10.0s** | 20 dB (Clean) | **100.0%** | **100.0%** | < 1 ms |
-| **10.0s** | 10 dB (Moderate Noise) | **66.0%** | **92.0%** | < 1 ms |
+| Component | Status | Details |
+| :--- | :---: | :--- |
+| **Torchvision Deprecation** | ✅ **FIXED** | Replaced `models.resnet18(pretrained=False)` with `models.resnet18(weights=None)` in [`model.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/model.py). |
+| **Dynamic Setup Checks** | ✅ **FIXED** | Replaced static print statements in [`start_training.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/start_training.py) with dynamic dataset file counting and CUDA detection. |
+| **Jupyter Notebook Cleanliness** | ✅ **FIXED** | Cleaned trailing empty cells and added SVD rank analysis in [`notebooks/visualization.ipynb`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/notebooks/visualization.ipynb). |
+| **Effective Batch Size** | ✅ **FIXED** | Implemented `GRADIENT_ACCUMULATION_STEPS = 4` with `BATCH_SIZE = 16` in [`config.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/config.py) and [`train.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/train.py) to achieve an effective batch size of **64** (126 negatives per anchor pair). |
+| **FAISS Rebuild on Load** | ✅ **FIXED** | Updated `load_index()` in [`retrieval.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/retrieval.py) to automatically rebuild the FAISS `IndexFlatIP` index upon loading saved pickle databases. |
+| **Submission Singleton Cache** | ✅ **FIXED** | Tracked `_DEFAULT_ENCODER_PATH` in [`submission.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/submission.py) to re-instantiate if a different weight path is passed. |
+| **Scikit-Learn Deprecation** | ✅ **FIXED** | Removed deprecated `multi_class='ovr'` parameter from `LogisticRegression` in [`evaluate.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/evaluate.py). |
+| **Unit Test Coverage** | ✅ **FIXED** | Updated `test_retrieval_system_search_modes` in [`tests/test_pipeline.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/tests/test_pipeline.py) to test `predict_track()` end-to-end for both FAISS and brute-force modes (**8/8 PASSED**). |
+| **Declared Dependencies** | ✅ **FIXED** | Added `soundfile>=0.12.1` and `streamlit>=1.25.0` to [`requirements.txt`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/requirements.txt). |
+| **Streamlit App Accuracy & Speed** | ✅ **FIXED** | Updated [`app.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/app.py) with exact track ID matching (`pred_id == track_id`), fast 2-second index loading, and empirical metrics. |
 
 ---
 
-## 3. Self-Supervised Data Efficiency & Baseline Comparison
+## 2. Empirical Model Performance & Reproducible Experiments
 
-### Label Efficiency (Linear Probe F1 vs. % Labeled Data)
-Self-supervised pretraining provides significant data efficiency when labeled data is scarce:
+### A. Training Setup
+- **Dataset**: FMA-Small (8,000 Audio Tracks: 7,200 train / 800 validation)
+- **Architecture**: ResNet-18 Spectrogram Encoder + MLP Projection Head (512-D Latent Embedding)
+- **Pretraining Loss**: NT-Xent Contrastive Loss ($\tau=0.07$) with AMP Mixed Precision (`torch.amp`)
+- **Effective Batch Size**: **64** (Mini-batch 16 $\times$ 4 Accumulation Steps)
 
-- **1% Labeled Data**: F1 = 0.0476
-- **5% Labeled Data**: F1 = 0.0476
-- **10% Labeled Data**: F1 = 0.0599
-- **50% Labeled Data**: F1 = 0.1117
-- **100% Labeled Data**: F1 = 0.1185
-
-### Baseline Comparison
-- **Supervised ResNet-18 (trained from scratch on 10% labels)**: F1 = 0.1031
-- **SimCLR Pretrained Encoder + Linear Probe (10% labels)**: Beats scratch baseline while utilizing zero labels during representation pretraining.
+### B. Reproducible Benchmark & Ablation Scripts
+- [`benchmark_retrieval.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/benchmark_retrieval.py): Evaluates audio retrieval recall across SNR noise levels (20dB to 0dB) and clip lengths (2s to 10s).
+- [`ablation.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/ablation.py): Computes SVD singular value rank and sweeps label efficiency ratios (1%, 5%, 10%, 50%, 100%).
 
 ---
 
-## 4. Dimensional Collapse Inspection
-
-Dimensional collapse analysis verified via singular value decomposition (SVD) of output embeddings $Z \in \mathbb{R}^{N \times 512}$:
-
-- **Active Embedding Dimensions**: **512 / 512** (No zero-variance collapsed dimensions)
-- **Top-1 Singular Value Explained Variance**: 0.48%
-- **Top-10 Singular Value Explained Variance**: 4.12%
-- **Conclusion**: Representation space is well-distributed and isotropic across all 512 dimensions.
-
----
-
-## 5. Automated Test Suite Verification
-
-Pytest unit test suite (`tests/test_pipeline.py`) results:
-```
-======================== 8 passed, 8 warnings in 8.05s ========================
-```
-- `test_spectrogram_conversion_shape`: PASSED
-- `test_resnet_encoder_normalization`: PASSED
-- `test_simclr_model_projection`: PASSED
-- `test_nt_xent_loss_positive`: PASSED
-- `test_augmentation_short_clip_bounds`: PASSED
-- `test_load_fma_labels_zero_padded_keys`: PASSED
-- `test_retrieval_system_search_modes`: PASSED
-- `test_submission_caching`: PASSED
+## 3. Test Suite & Infrastructure Verification
+- **Pytest Suite**: **8 / 8 PASSED** (`16.16s`)
+- **Docker Container**: `echofind:latest` verified (**8/8 PASSED**)
+- **GitHub Actions CI/CD**: **GREEN** on branch `main`

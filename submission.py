@@ -89,12 +89,14 @@ class AudioEncoder:
 
 
 _DEFAULT_ENCODER: Optional[AudioEncoder] = None
+_DEFAULT_ENCODER_PATH: Optional[str] = None
 
 def get_default_encoder(encoder_path: str = os.path.join("weights", "encoder.pth")) -> AudioEncoder:
     """Helper to reuse loaded encoder instance across query calls."""
-    global _DEFAULT_ENCODER
-    if _DEFAULT_ENCODER is None:
+    global _DEFAULT_ENCODER, _DEFAULT_ENCODER_PATH
+    if _DEFAULT_ENCODER is None or _DEFAULT_ENCODER_PATH != encoder_path:
         _DEFAULT_ENCODER = AudioEncoder(encoder_path=encoder_path)
+        _DEFAULT_ENCODER_PATH = encoder_path
     return _DEFAULT_ENCODER
 
 

@@ -231,7 +231,7 @@ class AudioRetrievalSystem:
         print(f"Index saved to {index_path}")
     
     def load_index(self, index_path: str):
-        """Load index from disk."""
+        """Load index from disk and rebuild FAISS index if available."""
         import pickle
         
         with open(index_path, 'rb') as f:
@@ -242,3 +242,14 @@ class AudioRetrievalSystem:
         
         print(f"Index loaded from {index_path}")
         print(f"Loaded {len(self.database)} tracks")
+        
+        if HAS_FAISS and len(self.database) > 0:
+            try:
+                embeddings_array = np.array(list(self.database.values())).astype('float32')
+                dimension = embeddings_array.shape[1]
+                self.faiss_index = faiss.IndexFlatIP(dimension)
+                self.faiss_index.add(embeddings_array)
+                print(f"Rebuilt FAISS index with {self.faiss_index.ntotal} vectors")
+            except Exception as e:
+                print(f"Could not build FAISS index: {e}, using brute-force search")
+                self.faiss_index = None
