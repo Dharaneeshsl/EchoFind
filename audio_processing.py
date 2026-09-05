@@ -76,3 +76,10 @@ def preprocess_audio(file_path: str, normalize: bool = True) -> torch.Tensor:
     if normalize:
         logmel = normalize_spectrogram(logmel)
     return logmel
+
+def add_noise(audio: np.ndarray, noise_std: float = 0.01) -> np.ndarray:
+    """Add Gaussian noise to audio array."""
+    noise = np.random.normal(0, noise_std, size=audio.shape)
+    noisy_audio = audio + noise
+    return np.clip(noisy_audio, -1.0, 1.0)
+
