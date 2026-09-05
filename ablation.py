@@ -1,21 +1,26 @@
 """
 Reproducible Ablation & Latent Space Analysis Script for EchoFind.
-Sweeps label efficiency ratios (1%, 5%, 10%, 50%, 100%) and computes SVD singular values.
+Loads REAL FMA audio tracks, extracts real encoder embeddings,
+computes SVD singular value rank on true music representations,
+and sweeps label efficiency ratios (1%, 5%, 10%, 50%, 100%).
 """
 import os
+import glob
 import json
 import torch
 import numpy as np
 import config
 from model import ResNetEncoder
+from audio_processing import preprocess_audio
+from evaluate import load_fma_labels
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
 
-def run_ablation():
-    """Run label efficiency and SVD latent dimension analysis."""
+def run_ablation(max_files: int = 1000):
+    """Run label efficiency and SVD latent dimension analysis on real audio tracks."""
     print("=" * 60)
-    print("ECHOFIND - ABLATION & LATENT SPACE ANALYSIS")
+    print("ECHOFIND - REAL AUDIO ABLATION & LATENT SPACE ANALYSIS")
     print("=" * 60)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,35 +35,50 @@ def run_ablation():
         print("Warning: encoder weights not found. Using random init.")
     encoder.eval()
     
-    # Generate synthetic / extracted embeddings for evaluation
-    num_samples = 500
-    dim = config.EMBEDDING_DIM
+    label_dict = load_fma_labels(config.DATA_DIR)
+    audio_files = sorted(glob.glob(os.path.join(config.DATA_DIR, "**", "*.mp3"), recursive=True))[:max_files]
     
-    print("\nGenerating evaluation representations...")
+    print(f"\nExtracting real embeddings from {len(audio_files)} audio tracks...")
     embeddings = []
-    dummy_input = torch.randn(1, 1, 128, 215).to(device)
+    labels = []
+    
+    target_frames = int(5 * config.SAMPLE_RATE / config.HOP_LENGTH)
     
     with torch.no_grad():
-        for _ in range(num_samples):
-            inp = dummy_input + torch.randn_like(dummy_input) * 0.1
-            emb = encoder(inp).cpu().numpy().flatten()
-            embeddings.append(emb)
-            
+        for f in audio_files:
+            try:
+                spec = preprocess_audio(f, normalize=True)
+                if spec.shape[2] < target_frames:
+                    spec = torch.nn.functional.pad(spec, (0, target_frames - spec.shape[2]))
+                elif spec.shape[2] > target_frames:
+                    spec = spec[:, :, :target_frames]
+                spec = spec.unsqueeze(0).to(device)
+                emb = encoder(spec).cpu().numpy().flatten()
+                
+                track_id = os.path.basename(f)
+                genre_label = label_dict.get(track_id, label_dict.get(track_id.split('.')[0], 0))
+                
+                embeddings.append(emb)
+                labels.append(genre_label)
+            except Exception:
+                continue
+                
     embeddings = np.array(embeddings)
-    # Generate synthetic genre labels (8 classes)
-    np.random.seed(config.RANDOM_SEED)
-    labels = np.random.randint(0, 8, size=num_samples)
+    labels = np.array(labels)
+    dim = embeddings.shape[1]
     
-    # 1. SVD Latent Rank Check
+    print(f"Extracted {len(embeddings)} real audio embeddings of dimension {dim}.")
+    
+    # 1. Real SVD Latent Rank Check
     U, S, Vt = np.linalg.svd(embeddings - embeddings.mean(axis=0))
     active_dims = np.sum(S > 1e-4)
-    print(f"\n[SVD Analysis] Active Latent Dimensions: {active_dims} / {dim}")
+    print(f"\n[Real SVD Analysis] Active Latent Dimensions: {active_dims} / {dim}")
     
-    # 2. Label Efficiency Sweep
+    # 2. Real Label Efficiency Sweep
     ratios = [0.01, 0.05, 0.10, 0.50, 1.00]
     sweep_results = {}
     
-    print("\n[Label Efficiency Sweep]")
+    print("\n[Real Label Efficiency Sweep]")
     for ratio in ratios:
         if ratio == 1.00:
             X_train, y_train = embeddings, labels
@@ -81,4 +101,4 @@ def run_ablation():
     print(f"\nAblation study completed & saved to {out_path}")
 
 if __name__ == "__main__":
-    run_ablation()
+    run_ablation(max_files=1000)

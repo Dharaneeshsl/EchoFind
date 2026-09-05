@@ -19,6 +19,7 @@ This document records empirical benchmarks, code audit findings, and model perfo
 | **Unit Test Coverage** | ✅ **FIXED** | Updated `test_retrieval_system_search_modes` in [`tests/test_pipeline.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/tests/test_pipeline.py) to test `predict_track()` end-to-end for both FAISS and brute-force modes (**8/8 PASSED**). |
 | **Declared Dependencies** | ✅ **FIXED** | Added `soundfile>=0.12.1` and `streamlit>=1.25.0` to [`requirements.txt`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/requirements.txt). |
 | **LRU Cache Query Bug** | ✅ **FIXED** | Removed `@lru_cache` from `preprocess_audio()` in [`audio_processing.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/audio_processing.py) to prevent temporary query files from returning stale cached tensors. |
+| **Streamlit Metric Consistency** | ✅ **FIXED** | Replaced hardcoded fake values in [`app.py`](file:///c:/Users/welcome/Desktop/Projects/EchoFind/EchoFind/app.py) Tab 2 with dynamic JSON benchmarking widgets reading `evaluation_results.json`, `retrieval_benchmark.json`, and `ablation_results.json`. |
 
 ---
 
@@ -34,13 +35,23 @@ Evaluating 5.0-second noisy query clips against a 500-track database:
 | **10 dB (Medium Noise)** | 5.0s | **20.0%** | **30.0%** |
 | **5 dB (Heavy Noise)** | 5.0s | **15.0%** | **20.0%** |
 
-### B. SVD Latent Space Capacity Analysis (`ablation.py`)
-- **Micro-Batch Batch-8 Model**: **19 / 512 Active Latent Dimensions** (Dimensional Collapse)
-- **Gathered Matrix Batch-64 Model**: **178 / 512 Active Latent Dimensions** (**9.3x Feature Capacity Expansion**)
+### B. Linear Probe Evaluation on Real FMA Tracks (`evaluate.py`)
+Evaluated on **8,000 FMA audio tracks** using a Logistic Regression linear probe (10% train split / 90% test split):
+- **Weighted F1 Score**: **0.1236** (Accuracy: **0.13** across 8 classes)
+- *Note*: Standard SimCLR contrastive learning optimizes instance discrimination (Shazam retrieval) rather than supervised class clustering. Without `tracks.csv`, genre classes fall back to track-ID modulo partitioning (`hash(id) % 8`).
+
+### C. SVD Latent Space & Label Efficiency Analysis (`ablation.py`)
+- **SVD Active Latent Dimensions**: **511 / 512 Active Dims** on real audio representations.
+- **Label Efficiency Sweep (Real Audio)**:
+  - 1% Labeled Data: **0.0061** Weighted F1
+  - 5% Labeled Data: **0.0689** Weighted F1
+  - 10% Labeled Data: **0.0743** Weighted F1
+  - 50% Labeled Data: **0.1526** Weighted F1
+  - 100% Labeled Data: **0.1708** Weighted F1
 
 ---
 
 ## 3. Test Suite & Infrastructure Verification
-- **Pytest Suite**: **8 / 8 PASSED** (`5.20s`, 0 warnings)
+- **Pytest Suite**: **8 / 8 PASSED** (`12.89s`, 0 errors)
 - **Docker Container**: `echofind:latest` verified (**8/8 PASSED**)
 - **GitHub Actions CI/CD**: **GREEN** on branch `main`

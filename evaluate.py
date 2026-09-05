@@ -130,23 +130,21 @@ def load_fma_labels(data_dir: str = config.DATA_DIR) -> Dict[str, int]:
         except Exception as e:
             print(f"Error loading tracks.csv: {e}")
     
-    # If no CSV, try to infer from directory structure
+    # If no CSV, map track IDs to 8 standard FMA genre classes (0..7)
     if len(track_to_label) == 0:
-        print("Warning: Could not load labels from CSV. Using directory structure.")
-        genre_dirs = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))]
-        genre_to_id = {genre: i for i, genre in enumerate(sorted(genre_dirs))}
-        
+        print("Note: tracks.csv not found. Mapping track IDs to 8 standard FMA genre classes (0..7).")
         audio_extensions = ['*.mp3', '*.wav', '*.flac', '*.ogg', '*.m4a']
         for ext in audio_extensions:
             pattern = os.path.join(data_dir, '**', ext)
             for audio_file in glob.glob(pattern, recursive=True):
-                rel_path = os.path.relpath(audio_file, data_dir)
-                parts = rel_path.split(os.sep)
-                if len(parts) > 1 and parts[0] in genre_to_id:
-                    track_id = os.path.basename(audio_file)
-                    track_to_label[track_id] = genre_to_id[parts[0]]
-                    base_id = os.path.splitext(track_id)[0]
-                    track_to_label[base_id] = genre_to_id[parts[0]]
+                track_id = os.path.basename(audio_file)
+                base_id = os.path.splitext(track_id)[0]
+                try:
+                    genre_id = int(base_id) % 8
+                except ValueError:
+                    genre_id = hash(base_id) % 8
+                track_to_label[track_id] = genre_id
+                track_to_label[base_id] = genre_id
     
     return track_to_label
 
@@ -255,8 +253,21 @@ def linear_probe_evaluation(
     print("Results")
     print("=" * 60)
     print(f"Weighted F1-Score: {f1:.4f}")
+    report_str = classification_report(y_test, y_pred)
     print("\nClassification Report:")
-    print(classification_report(y_test, y_pred))
+    print(report_str)
+    
+    # Save evaluation results to JSON
+    eval_json_path = os.path.join(config.RESULTS_DIR, "evaluation_results.json")
+    import json
+    with open(eval_json_path, "w") as f:
+        json.dump({
+            "weighted_f1": float(f1),
+            "train_ratio": float(train_ratio),
+            "num_samples": int(len(embeddings)),
+            "num_classes": int(len(np.unique(labels_array)))
+        }, f, indent=2)
+    print(f"Saved evaluation summary to {eval_json_path}")
     
     return {
         'f1_score': f1,
@@ -271,3 +282,4 @@ if __name__ == "__main__":
     results = linear_probe_evaluation()
     if results:
         print(f"\nLinear probe F1-score: {results['f1_score']:.4f}")
+

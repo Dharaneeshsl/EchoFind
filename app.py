@@ -124,18 +124,57 @@ with tab1:
                     st.balloons()
 
 with tab2:
-    st.header("Self-Supervised Learning Benchmarks")
-    st.json({
-        "Training Dataset": "FMA-Small (8,000 Audio Tracks)",
-        "Pretraining Paradigm": "SimCLR (NT-Xent Contrastive Loss, Temp=0.07)",
-        "Encoder Architecture": "ResNet-18 Spectrogram Encoder (512-D Latent Space)",
-        "Best Validation Loss": 0.0124,
-        "Retrieval Recall@1 (Clean Track)": "95.0%",
-        "Retrieval Recall@1 (20dB SNR Noise)": "82.5%",
-        "Retrieval Recall@1 (0dB High Noise)": "12.5%",
-        "Pytest Unit Tests": "8 / 8 Passed (100%)",
-        "CI/CD Pipeline": "GitHub Actions Green"
-    })
+    st.header("Self-Supervised Learning Empirical Benchmarks")
+    eval_file = os.path.join(config.RESULTS_DIR, "evaluation_results.json")
+    bench_file = os.path.join(config.RESULTS_DIR, "retrieval_benchmark.json")
+    ablation_file = os.path.join(config.RESULTS_DIR, "ablation_results.json")
+    
+    import json
+    eval_data = json.load(open(eval_file)) if os.path.exists(eval_file) else None
+    bench_data = json.load(open(bench_file)) if os.path.exists(bench_file) else None
+    ablation_data = json.load(open(ablation_file)) if os.path.exists(ablation_file) else None
+
+    # Summary Metrics Cards
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        if eval_data and "weighted_f1" in eval_data:
+            st.metric("Linear Probe Weighted F1", f"{eval_data['weighted_f1']:.4f}", help="Linear probe evaluated on 10% labeled data")
+        else:
+            st.metric("Linear Probe Weighted F1", "Running...", help="Evaluation script running")
+    with m2:
+        if bench_data and "20dB_noise" in bench_data and "recall@1" in bench_data["20dB_noise"]:
+            st.metric("Shazam Recall@1 (20dB Noise)", f"{bench_data['20dB_noise']['recall@1']*100:.1f}%")
+        else:
+            st.metric("Shazam Recall@1 (20dB Noise)", "N/A")
+    with m3:
+        if ablation_data and "svd_active_dims" in ablation_data:
+            st.metric("SVD Active Latent Dims", f"{ablation_data['svd_active_dims']} / {config.EMBEDDING_DIM}")
+        else:
+            st.metric("SVD Active Latent Dims", "N/A")
+
+    st.divider()
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.subheader("📊 Linear Probe & Classification (`evaluation_results.json`)")
+        if eval_data:
+            st.json(eval_data)
+        else:
+            st.info("Run `python evaluate.py` to generate linear probe evaluation metrics.")
+            
+        st.subheader("🎯 Shazam Retrieval Recall Benchmark (`retrieval_benchmark.json`)")
+        if bench_data:
+            st.json(bench_data)
+        else:
+            st.info("Run `python benchmark_retrieval.py` to generate Shazam retrieval metrics.")
+
+    with col_b:
+        st.subheader("🧪 SVD Latent Rank & Label Efficiency (`ablation_results.json`)")
+        if ablation_data:
+            st.json(ablation_data)
+        else:
+            st.info("Run `python ablation.py` to generate ablation metrics.")
+
 
 with tab3:
     st.header("System Architecture")
