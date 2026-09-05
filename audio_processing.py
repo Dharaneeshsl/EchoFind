@@ -69,7 +69,6 @@ def normalize_spectrogram(spectrogram: torch.Tensor) -> torch.Tensor:
         return spectrogram
     return (spectrogram - mean) / std
 
-@lru_cache(maxsize=10000)
 def preprocess_audio(file_path: str, normalize: bool = True) -> torch.Tensor:
     waveform = load_audio(file_path)
     logmel = audio_to_logmel(waveform)
