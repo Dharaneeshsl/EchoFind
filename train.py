@@ -28,14 +28,16 @@ def set_seed(seed: int = config.RANDOM_SEED):
 
 
 def train_epoch(model, dataloader, criterion, optimizer, scaler, device):
-    """Train for one epoch with AMP & Gradient Accumulation."""
+    """Train for one epoch with AMP & Embedding-Gathered Contrastive Loss over effective batch size 64."""
     model.train()
     total_loss = 0.0
     num_batches = 0
-    accum_steps = getattr(config, 'GRADIENT_ACCUMULATION_STEPS', 1)
+    accum_steps = getattr(config, 'GRADIENT_ACCUMULATION_STEPS', 4)
     
     optimizer.zero_grad()
     pbar = tqdm(dataloader, desc="Training")
+    accum_z1, accum_z2 = [], []
+    
     for i, (view1, view2) in enumerate(pbar):
         view1 = view1.to(device)
         view2 = view2.to(device)
@@ -43,25 +45,32 @@ def train_epoch(model, dataloader, criterion, optimizer, scaler, device):
         with torch.amp.autocast('cuda', enabled=config.USE_AMP):
             z1 = model(view1)
             z2 = model(view2)
-            raw_loss = criterion(z1, z2)
-            loss = raw_loss / accum_steps
+            
+        accum_z1.append(z1)
+        accum_z2.append(z2)
         
-        if config.USE_AMP and device.type == 'cuda':
-            scaler.scale(loss).backward()
-            if (i + 1) % accum_steps == 0 or (i + 1) == len(dataloader):
+        if len(accum_z1) == accum_steps or (i + 1) == len(dataloader):
+            z1_cat = torch.cat(accum_z1, dim=0)
+            z2_cat = torch.cat(accum_z2, dim=0)
+            
+            with torch.amp.autocast('cuda', enabled=config.USE_AMP):
+                loss = criterion(z1_cat, z2_cat)
+            
+            if config.USE_AMP and device.type == 'cuda':
+                scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
-        else:
-            loss.backward()
-            if (i + 1) % accum_steps == 0 or (i + 1) == len(dataloader):
+            else:
+                loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
-        
-        total_loss += raw_loss.item()
-        num_batches += 1
-        pbar.set_postfix({'loss': f"{raw_loss.item():.4f}"})
-    
+                
+            total_loss += loss.item()
+            num_batches += 1
+            pbar.set_postfix({'loss': f"{loss.item():.4f}"})
+            accum_z1, accum_z2 = [], []
+            
     return total_loss / num_batches if num_batches > 0 else 0.0
 
 
