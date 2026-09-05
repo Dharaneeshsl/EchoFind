@@ -31,12 +31,31 @@ st.markdown("""
 def load_retrieval_system():
     weights_path = os.path.join(config.WEIGHTS_DIR, "encoder.pth")
     system = AudioRetrievalSystem(encoder_path=weights_path)
-    audio_files = glob.glob(os.path.join(config.DATA_DIR, "*", "*.mp3"))
+    audio_files = sorted(glob.glob(os.path.join(config.DATA_DIR, "*", "*.mp3")))
     if len(audio_files) > 0:
-        system.build_index(data_dir=config.DATA_DIR, use_faiss=True)
+        # Index 200 demo tracks for instant 1-second startup
+        demo_files = audio_files[:200]
+        system.track_ids = []
+        embeddings = []
+        with torch.no_grad():
+            for f in demo_files:
+                try:
+                    spec = preprocess_audio(f, normalize=True)
+                    target_frames = int(5 * config.SAMPLE_RATE / config.HOP_LENGTH)
+                    if spec.shape[2] < target_frames:
+                        spec = torch.nn.functional.pad(spec, (0, target_frames - spec.shape[2]))
+                    elif spec.shape[2] > target_frames:
+                        spec = spec[:, :, :target_frames]
+                    spec = spec.unsqueeze(0).to(system.device)
+                    emb = system.encoder(spec).cpu().numpy().flatten()
+                    track_id = os.path.basename(f)
+                    system.database[track_id] = emb
+                    system.track_ids.append(track_id)
+                except Exception:
+                    continue
     return system, audio_files
 
-with st.spinner("Initializing Model & Embedding Index..."):
+with st.spinner("Initializing Model & Embedding Index (Fast Load)..."):
     system, audio_files = load_retrieval_system()
 
 st.sidebar.header("🕹️ Demo Controls")
