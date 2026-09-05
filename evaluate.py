@@ -85,48 +85,70 @@ def extract_embeddings(
 def load_fma_labels(data_dir: str = config.DATA_DIR) -> Dict[str, int]:
     """
     Load genre labels from FMA dataset.
-    This is a placeholder - you'll need to adapt based on actual FMA structure.
+    Maps track ID filenames (e.g., '000002.mp3', '000002', '2.mp3') to integer genre class IDs.
     """
-    # FMA-Small structure: tracks.csv contains genre labels
-    # This is a simplified version - adapt to your actual FMA structure
-    labels = {}
+    genre_to_id = {}
+    track_to_label = {}
     
     # Try to load from tracks.csv if available
     tracks_csv = os.path.join(data_dir, 'tracks.csv')
+    if not os.path.exists(tracks_csv):
+        parent_tracks_csv = os.path.join(os.path.dirname(data_dir), 'tracks.csv')
+        if os.path.exists(parent_tracks_csv):
+            tracks_csv = parent_tracks_csv
+            
     if os.path.exists(tracks_csv):
         try:
-            df = pd.read_csv(tracks_csv, index_col=0, header=[0, 1])
-            # FMA structure: ('track', 'genre_top') column contains genre
-            if ('track', 'genre_top') in df.columns:
+            try:
+                df = pd.read_csv(tracks_csv, index_col=0, header=[0, 1])
+            except Exception:
+                df = pd.read_csv(tracks_csv, index_col=0)
+                
+            genre_col = None
+            for col in df.columns:
+                col_str = str(col).lower()
+                if 'genre' in col_str or 'genre_top' in col_str:
+                    genre_col = col
+                    break
+                    
+            if genre_col is not None:
                 for idx, row in df.iterrows():
-                    genre = row[('track', 'genre_top')]
-                    if pd.notna(genre):
-                        # Convert genre to integer label
-                        if genre not in labels:
-                            labels[genre] = len(labels)
-                        labels[idx] = labels[genre]
+                    genre = row[genre_col]
+                    if pd.notna(genre) and str(genre).strip() != '':
+                        if genre not in genre_to_id:
+                            genre_to_id[genre] = len(genre_to_id)
+                        label_id = genre_to_id[genre]
+                        
+                        try:
+                            int_id = int(idx)
+                            track_to_label[f"{int_id:06d}.mp3"] = label_id
+                            track_to_label[f"{int_id:06d}"] = label_id
+                            track_to_label[f"{int_id}.mp3"] = label_id
+                            track_to_label[str(int_id)] = label_id
+                        except (ValueError, TypeError):
+                            track_to_label[str(idx)] = label_id
         except Exception as e:
             print(f"Error loading tracks.csv: {e}")
     
     # If no CSV, try to infer from directory structure
-    if len(labels) == 0:
+    if len(track_to_label) == 0:
         print("Warning: Could not load labels from CSV. Using directory structure.")
-        # FMA-Small might have genre folders
         genre_dirs = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d))]
-        genre_to_label = {genre: i for i, genre in enumerate(sorted(genre_dirs))}
+        genre_to_id = {genre: i for i, genre in enumerate(sorted(genre_dirs))}
         
         audio_extensions = ['*.mp3', '*.wav', '*.flac', '*.ogg', '*.m4a']
         for ext in audio_extensions:
             pattern = os.path.join(data_dir, '**', ext)
             for audio_file in glob.glob(pattern, recursive=True):
-                # Try to extract genre from path
                 rel_path = os.path.relpath(audio_file, data_dir)
                 parts = rel_path.split(os.sep)
-                if len(parts) > 1 and parts[0] in genre_to_label:
+                if len(parts) > 1 and parts[0] in genre_to_id:
                     track_id = os.path.basename(audio_file)
-                    labels[track_id] = genre_to_label[parts[0]]
+                    track_to_label[track_id] = genre_to_id[parts[0]]
+                    base_id = os.path.splitext(track_id)[0]
+                    track_to_label[base_id] = genre_to_id[parts[0]]
     
-    return labels
+    return track_to_label
 
 
 def linear_probe_evaluation(

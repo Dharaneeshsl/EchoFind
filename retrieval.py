@@ -8,8 +8,12 @@ import glob
 from typing import Dict, List, Tuple, Optional
 import config
 from model import ResNetEncoder
-from audio_processing import preprocess_audio
-import faiss
+try:
+    import faiss
+    HAS_FAISS = True
+except ImportError:
+    faiss = None
+    HAS_FAISS = False
 
 
 class AudioRetrievalSystem:

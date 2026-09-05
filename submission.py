@@ -88,6 +88,16 @@ class AudioEncoder:
         return embedding_np
 
 
+_DEFAULT_ENCODER: Optional[AudioEncoder] = None
+
+def get_default_encoder(encoder_path: str = os.path.join("weights", "encoder.pth")) -> AudioEncoder:
+    """Helper to reuse loaded encoder instance across query calls."""
+    global _DEFAULT_ENCODER
+    if _DEFAULT_ENCODER is None:
+        _DEFAULT_ENCODER = AudioEncoder(encoder_path=encoder_path)
+    return _DEFAULT_ENCODER
+
+
 def get_embedding(audio_path: str, encoder_path: str = os.path.join("weights", "encoder.pth")) -> np.ndarray:
     """
     Standalone function to get embedding from audio file.
@@ -99,7 +109,7 @@ def get_embedding(audio_path: str, encoder_path: str = os.path.join("weights", "
     Returns:
         Normalized embedding vector
     """
-    encoder = AudioEncoder(encoder_path=encoder_path)
+    encoder = get_default_encoder(encoder_path=encoder_path)
     return encoder.get_embedding(audio_path)
 
 
@@ -119,8 +129,7 @@ def predict_track(
     Returns:
         Predicted track ID
     """
-    # Get embedding for noisy audio
-    encoder = AudioEncoder(encoder_path=encoder_path)
+    encoder = get_default_encoder(encoder_path=encoder_path)
     query_embedding = encoder.get_embedding(noisy_audio_path)
     
     # Find best match using cosine similarity

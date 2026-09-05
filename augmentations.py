@@ -18,7 +18,7 @@ class TimeMasking:
     
     def __call__(self, spectrogram: torch.Tensor) -> torch.Tensor:
         """
-        Apply random time masking.
+        Apply random time masking safely.
         
         Args:
             spectrogram: Tensor of shape (1, n_mels, time_frames)
@@ -28,11 +28,17 @@ class TimeMasking:
         """
         spec = spectrogram.clone()
         time_frames = spec.shape[2]
+        if time_frames <= 1:
+            return spec
+        
+        max_mask = min(self.time_mask_param, time_frames - 1)
+        if max_mask < 1:
+            return spec
         
         for _ in range(self.num_masks):
-            t0 = np.random.randint(0, time_frames - self.time_mask_param)
-            t1 = t0 + np.random.randint(0, self.time_mask_param)
-            spec[:, :, t0:t1] = 0
+            t_len = np.random.randint(1, max_mask + 1)
+            t0 = np.random.randint(0, time_frames - t_len + 1)
+            spec[:, :, t0:t0 + t_len] = 0
         
         return spec
 
@@ -46,7 +52,7 @@ class FrequencyMasking:
     
     def __call__(self, spectrogram: torch.Tensor) -> torch.Tensor:
         """
-        Apply random frequency masking.
+        Apply random frequency masking safely.
         
         Args:
             spectrogram: Tensor of shape (1, n_mels, time_frames)
@@ -56,11 +62,17 @@ class FrequencyMasking:
         """
         spec = spectrogram.clone()
         n_mels = spec.shape[1]
-        
+        if n_mels <= 1:
+            return spec
+            
+        max_mask = min(self.freq_mask_param, n_mels - 1)
+        if max_mask < 1:
+            return spec
+            
         for _ in range(self.num_masks):
-            f0 = np.random.randint(0, n_mels - self.freq_mask_param)
-            f1 = f0 + np.random.randint(0, self.freq_mask_param)
-            spec[:, f0:f1, :] = 0
+            f_len = np.random.randint(1, max_mask + 1)
+            f0 = np.random.randint(0, n_mels - f_len + 1)
+            spec[:, f0:f0 + f_len, :] = 0
         
         return spec
 
