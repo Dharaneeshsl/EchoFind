@@ -8,6 +8,7 @@ import glob
 from typing import Dict, List, Tuple, Optional
 import config
 from model import ResNetEncoder
+from audio_processing import preprocess_audio
 try:
     import faiss
     HAS_FAISS = True
@@ -131,7 +132,7 @@ class AudioRetrievalSystem:
         print(f"Indexed {len(self.database)} tracks")
         
         # Build FAISS index if requested
-        if use_faiss and len(embeddings) > 0:
+        if use_faiss and HAS_FAISS and len(embeddings) > 0:
             try:
                 embeddings_array = np.array(embeddings).astype('float32')
                 dimension = embeddings_array.shape[1]
