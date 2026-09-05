@@ -177,9 +177,24 @@ def train():
 
     history = {'train_loss': [], 'val_loss': []}
     best_val_loss = float('inf')
+    start_epoch = 0
+
+    checkpoint_path = os.path.join(config.WEIGHTS_DIR, 'best_model.pth')
+    if os.path.exists(checkpoint_path):
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            if 'model_state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['model_state_dict'])
+                if 'optimizer_state_dict' in checkpoint:
+                    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                start_epoch = checkpoint.get('epoch', 0)
+                best_val_loss = checkpoint.get('val_loss', float('inf'))
+                print(f"[RESUMING] Successfully loaded checkpoint from Epoch {start_epoch} with Val Loss: {best_val_loss:.4f}")
+        except Exception as e:
+            print(f"[WARNING] Could not load existing checkpoint: {e}. Starting training from scratch.")
     
-    print(f"Starting full training for up to {config.NUM_EPOCHS} epochs...")
-    for epoch in range(config.NUM_EPOCHS):
+    print(f"Starting/Resuming full training from Epoch {start_epoch + 1} up to {config.NUM_EPOCHS} epochs...")
+    for epoch in range(start_epoch, config.NUM_EPOCHS):
         lr = get_lr(epoch)
         if lr is not None:
             for param_group in optimizer.param_groups:
