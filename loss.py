@@ -53,7 +53,7 @@ class NTXentLoss(nn.Module):
         # Mask to remove self-similarity (diagonal) before temperature scaling
         # Use large negative value instead of -inf for better numerical stability
         mask = torch.eye(2 * batch_size, dtype=torch.bool).to(z1.device)
-        similarity_matrix = similarity_matrix.masked_fill(mask, -1e9)
+        similarity_matrix = similarity_matrix.masked_fill(mask, -1e4)
         
         # Scale by temperature after masking
         similarity_matrix = similarity_matrix / self.temperature

@@ -21,6 +21,8 @@ LEARNING_RATE = 0.001
 WEIGHT_DECAY = 1e-4
 TEMPERATURE = 0.07  # NT-Xent temperature
 NUM_WORKERS = 0  # Set to 0 on Windows to avoid multiprocessing issues
+VAL_SPLIT = 0.1
+USE_AMP = True
 
 # Augmentation parameters
 TIME_MASK_PARAM = 20  # Maximum time masking length
