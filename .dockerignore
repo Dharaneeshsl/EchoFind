@@ -1,0 +1,9 @@
+.git
+.venv
+data/
+weights/*.pth
+__pycache__
+*.pyc
+.pytest_cache
+results/
+notebooks/
